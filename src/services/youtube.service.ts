@@ -127,9 +127,13 @@ export default class YoutubeService {
         ? `${YoutubeService.ytDlp} --ffmpeg-location "${ffmpegPath}" -o ${fileName} -f bestaudio[ext=m4a]/bestaudio "${videoId}" && ${ffmpegPath} -i ${fileName} -vn -ar 44100 -ac 2 -b:a 192k ${fileName}.mp3`
         : `${YoutubeService.ytDlp} --ffmpeg-location "${ffmpegPath}" -o ${fileName} -f bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio --merge-output-format mp4 "${videoId}"`;
 
-    const filePath = await new Promise<string>(function (resolve) {
+    const filePath = await new Promise<string>(function (resolve, reject) {
       childProcess.exec(cmd, async function (error) {
-        if (error) throw new InternalServerError(error.message);
+        if (error) {
+          reject(new InternalServerError(error.message));
+
+          return;
+        }
 
         if (format === 'mp3') {
           fs.unlinkSync(fileName);
