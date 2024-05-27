@@ -124,8 +124,8 @@ export default class YoutubeService {
     );
     const cmd =
       format === 'mp3'
-        ? `${YoutubeService.ytDlp} --ffmpeg-location "${ffmpegPath}" -o ${fileName} -f bestaudio[ext=m4a]/bestaudio "${videoId}" && ${ffmpegPath} -i ${fileName} -vn -ar 44100 -ac 2 -b:a 192k ${fileName}.mp3`
-        : `${YoutubeService.ytDlp} --ffmpeg-location "${ffmpegPath}" -o ${fileName} -f bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio --merge-output-format mp4 "${videoId}"`;
+        ? `${YoutubeService.ytDlp} --ffmpeg-location "${ffmpegPath}" -o "${fileName}" -f bestaudio[ext=m4a]/bestaudio -- "${videoId}" && ${ffmpegPath} -i "${fileName}" -vn -ar 44100 -ac 2 -b:a 192k "${fileName}.mp3"`
+        : `${YoutubeService.ytDlp} --ffmpeg-location "${ffmpegPath}" -o "${fileName}" -f bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio --merge-output-format mp4 -- "${videoId}"`;
 
     const filePath = await new Promise<string>(function (resolve, reject) {
       childProcess.exec(cmd, async function (error) {
@@ -153,7 +153,7 @@ export default class YoutubeService {
 
   private async getFileInfo(path: string): Promise<FileInfo> {
     const stat = fs.statSync(path);
-    const mime = mimeTypes.lookup(path) || '';
+    const mime = mimeTypes.lookup(path) || 'application/octet-stream';
     const fileInfo = {
       path,
       size: stat.size,
