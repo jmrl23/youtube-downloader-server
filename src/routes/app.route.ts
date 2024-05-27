@@ -151,8 +151,8 @@ export default async function appRoute(app: FastifyInstance) {
         reply.header('Content-Type', info.fileInfo.mime);
         reply.header('Cache-Control', 'max-age=3600');
         reply.header(
-          'content-disposition',
-          `attachment;filename=${contentDisposition(sanitize(`${info.videoInfo.title}.${format}`))}`,
+          'Content-Disposition',
+          `attachment; filename=${contentDisposition(sanitize(`${info.videoInfo.title}.${format}`))}`,
         );
         reply.then(
           async () => {
