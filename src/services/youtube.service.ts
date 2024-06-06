@@ -11,11 +11,10 @@ import yts, {
   type VideoSearchResult,
   type VideoMetadataResult,
 } from 'yt-search';
-import { memoryStore, type Store } from 'cache-manager';
+import type { Store } from 'cache-manager';
 import { InternalServerError } from 'http-errors';
 
 export default class YoutubeService {
-  private static instance: YoutubeService;
   private static binDir = path.resolve(__dirname, '../../.bin');
   private static ytDlp = path.resolve(YoutubeService.binDir, 'yt-dlp');
   private static tmpDir = os.tmpdir();
@@ -31,24 +30,12 @@ export default class YoutubeService {
     return instance;
   }
 
-  public static async getInstance(): Promise<YoutubeService> {
-    if (!YoutubeService.instance) {
-      YoutubeService.instance = await YoutubeService.createInstance(
-        memoryStore({
-          ttl: 30 * 1000,
-        }),
-      );
-    }
-
-    return YoutubeService.instance;
-  }
-
   public async getSuggestions(
     query: string,
     limit?: number,
   ): Promise<string[]> {
     const cachedSuggestions = await this.cacheService.get<string[]>(
-      `suggestion:${query}`,
+      `suggestion:list:${query}`,
     );
 
     if (cachedSuggestions) return cachedSuggestions.slice(0, limit);
@@ -77,7 +64,7 @@ export default class YoutubeService {
     limit?: number,
   ): Promise<VideoSearchResult[]> {
     const cachedVideos = await this.cacheService.get<VideoSearchResult[]>(
-      `video:${query}`,
+      `video:list:${query}`,
     );
 
     if (cachedVideos) return cachedVideos.slice(0, limit);

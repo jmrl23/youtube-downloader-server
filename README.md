@@ -22,4 +22,3 @@ yarn # or npm install
 | yarn run start:dev  | start in development mode (using swc)             |
 | yarn run start:prod | start in production mode (should run build first) |
 | yarn run format     | format code (using prettier)                      |
-| yarn run lint       | lint code (using eslint)                          |

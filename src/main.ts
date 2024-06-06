@@ -1,21 +1,23 @@
 import './init';
+import { SERVER_HOST, PORT } from './lib/constant/environment';
 import app from './app';
-import setupPlugin from './plugins/setup.plugin';
-import env from 'env-var';
 import detectPort from 'detect-port';
-import logger from './lib/utils/logger';
+import * as c from 'colorette';
+import logger from './lib/util/logger';
 
 async function main() {
-  await app.register(setupPlugin);
-
-  const port = await detectPort(env.get('PORT').default(3001).asPortNumber());
+  const host = SERVER_HOST;
+  const port = await detectPort(PORT);
 
   app.listen(
     {
+      host,
       port,
     },
-    function (_error, address) {
-      logger.info(address);
+    function (error) {
+      if (error) return logger.error(error.message);
+
+      logger.info(`Running on port ${c.bold(c.yellow(port))}`);
     },
   );
 }

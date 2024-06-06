@@ -1,60 +1,38 @@
-import type { FastifyInstance, FastifyRequest } from 'fastify';
-import type { Info } from '../services/youtube.service';
-import { InternalServerError } from 'http-errors';
-import sanitize from 'sanitize-filename';
-import contentDisposition from 'content-disposition';
 import fs from 'node:fs';
 import util from 'node:util';
-import AppService from '../services/app.service';
+import { FromSchema } from 'json-schema-to-ts';
+import { asRoute } from '../lib/util/typings';
+import {
+  youtubeDownloadSchema,
+  youtubeSearchSuggestionsSchema,
+  youtubeVideoSearchSchema,
+} from '../schemas/youtube-schema';
+import YoutubeService from '../services/youtube.service';
+import contentDisposition from 'content-disposition';
+import sanitize from 'sanitize-filename';
+import { memoryStore } from 'cache-manager';
 
-export const autoPrefix = '/';
-
-export default async function appRoute(app: FastifyInstance) {
-  const appService = await AppService.getInstance();
+export default asRoute(async function appRoute(app) {
+  const cacheStore = memoryStore({ ttl: 0 });
+  const youtubeService = await YoutubeService.createInstance(cacheStore);
 
   app
 
     .route({
       method: 'GET',
-      url: '/',
-      handler(_, reply) {
-        reply.redirect('/docs');
-      },
-    })
-
-    .route({
-      method: 'GET',
       url: '/suggestions',
       schema: {
-        description: 'Get list of suggestions',
+        description: youtubeSearchSuggestionsSchema.description,
+        security: [],
         tags: ['youtube'],
-        querystring: {
-          type: 'object',
-          properties: {
-            q: {
-              type: 'string',
-            },
-            limit: {
-              type: 'integer',
-            },
-          },
-          required: ['q'],
-        },
+        querystring: youtubeSearchSuggestionsSchema,
       },
-      async handler(
-        request: FastifyRequest<{
-          Querystring: {
-            q: string;
-            limit?: number;
-          };
-        }>,
-      ) {
-        const { q: query, limit } = request.query;
-        const suggestions = await appService.getSuggestions(query, limit);
-
-        return {
-          suggestions,
-        };
+      async handler(request) {
+        const { q, limit } = request.query as FromSchema<
+          typeof youtubeSearchSuggestionsSchema
+        >;
+        const suggestions = await youtubeService.getSuggestions(q, limit);
+        return { suggestions };
       },
     })
 
@@ -62,90 +40,42 @@ export default async function appRoute(app: FastifyInstance) {
       method: 'GET',
       url: '/videos',
       schema: {
-        description: 'Get list of videos',
+        description: youtubeVideoSearchSchema.description,
+        security: [],
         tags: ['youtube'],
-        querystring: {
-          type: 'object',
-          properties: {
-            q: {
-              type: 'string',
-            },
-            limit: {
-              type: 'integer',
-            },
-          },
-          required: ['q'],
-        },
+        querystring: youtubeVideoSearchSchema,
       },
-      async handler(
-        request: FastifyRequest<{
-          Querystring: {
-            q: string;
-            limit?: number;
-          };
-        }>,
-      ) {
-        const { q: query, limit } = request.query;
-        const videos = await appService.getVideos(query, limit);
-
-        return {
-          videos,
-        };
+      async handler(request) {
+        const { q, limit } = request.query as FromSchema<
+          typeof youtubeVideoSearchSchema
+        >;
+        const videos = await youtubeService.getVideos(q, limit);
+        return { videos };
       },
     })
 
     .route({
       method: 'GET',
-      url: '/download/:video_id',
+      url: '/download/:videoId',
       schema: {
-        description: 'Download file',
+        description: youtubeDownloadSchema.description,
+        security: [],
         tags: ['youtube'],
-        querystring: {
-          type: 'object',
-          properties: {
-            format: {
-              type: 'string',
-              enum: ['mp3', 'mp4'],
-            },
-          },
-          required: ['format'],
-        },
-        params: {
-          type: 'object',
-          properties: {
-            video_id: {
-              type: 'string',
-            },
-          },
-          required: ['video_id'],
-        },
+        params: youtubeDownloadSchema.properties.params,
+        querystring: youtubeDownloadSchema.properties.querystring,
       },
-      async handler(
-        request: FastifyRequest<{
-          Querystring: {
-            format: string;
-          };
-          Params: {
-            video_id: string;
-          };
-        }>,
-        reply,
-      ) {
-        const format = request.query.format;
-        const videoId = request.params.video_id;
+      async handler(request, reply) {
+        const { videoId } = request.params as FromSchema<
+          typeof youtubeDownloadSchema.properties.params
+        >;
+        const { format } = request.query as FromSchema<
+          typeof youtubeDownloadSchema.properties.querystring
+        >;
 
-        let info: Info | null = null;
-
-        switch (format) {
-          case 'mp3':
-            info = await appService.getMp3(videoId);
-            break;
-          case 'mp4':
-            info = await appService.getMp4(videoId);
-            break;
-        }
-
-        if (!info?.fileInfo) throw new InternalServerError();
+        let info =
+          format === 'mp3'
+            ? await youtubeService.getMp3(videoId)
+            : await youtubeService.getMp4(videoId);
 
         reply.header('Content-Length', info.fileInfo.size);
         reply.header('Content-Type', info.fileInfo.mime);
@@ -169,4 +99,4 @@ export default async function appRoute(app: FastifyInstance) {
         return readStream;
       },
     });
-}
+});
